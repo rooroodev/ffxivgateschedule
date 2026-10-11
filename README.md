@@ -1,2 +1,2 @@
-# ffxivgateschedule.github.io
-FFXIV 7.56 GATE Schedule
+# FFXIV 7.56 GATE Schedule
+Proof of Concept
