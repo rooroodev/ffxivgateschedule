@@ -5,6 +5,8 @@
   --text: #e8eaf0;
   --muted: #9aa0b0;
   --accent: #5b8cff;
+  --green: #3ddc84;
+  --yellow: #ffd23f;
   --border: #2d3242;
 }
 
@@ -70,6 +72,16 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
 }
 .filter-list label:hover { background: var(--row); }
 .filter-list input { width: 18px; height: 18px; accent-color: var(--accent); }
+.filter-list .divider { height: 1px; margin: 6px 0; background: var(--border); }
+.filter-list .note { padding: 0 8px 6px; font-size: 0.8rem; color: var(--muted); max-width: 260px; }
+.filter-list .note:empty { display: none; }
+.filter-list .options-link {
+  display: block;
+  padding: 10px 8px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.filter-list .options-link:hover { text-decoration: underline; }
 
 /* Pinned current GATE */
 .current {
@@ -91,7 +103,13 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   color: var(--accent);
   margin-bottom: 2px;
 }
-.current .row.dim { opacity: 0.6; border-style: dashed; }
+.current .row.state-entry    { border-color: var(--green); }
+.current .row.state-progress { border-color: var(--accent); }
+.current .row.state-coming   { border-color: var(--yellow); }
+
+.state-entry .tag,    .state-entry .countdown    { color: var(--green); }
+.state-progress .tag, .state-progress .countdown { color: var(--accent); }
+.state-coming .tag,   .state-coming .countdown   { color: var(--yellow); }
 
 .section-label {
   margin: 8px 0 6px;

@@ -130,10 +130,42 @@
   }
 
   // ---------- Current GATE ----------
+  // Seconds a GATE can be entered, and then stays in progress, measured from its start.
+  const TIMING = {
+    'Air Force One':          { entry_period: 600, in_progress: 210 },
+    'Cliffhanger':            { entry_period: 600, in_progress: 0 },
+    'Leap of Faith':          { entry_period: 480, in_progress: 600 },
+    'Any Way the Wind Blows': { entry_period: 120, in_progress: 75 },
+    'The Slice is Right':     { entry_period: 120, in_progress: 270 },
+  };
+  const TAGS = { entry: 'Now – Entry open', progress: 'Now – In progress', coming: 'Coming up' };
+  const COUNTDOWN_LABELS = { entry: 'entry closes in', progress: 'ends in', coming: 'starts in' };
+
+  let pinned = null;
+
+  // Decides which GATE is pinned and in what state:
+  //   entry    -> GATE's entry period (counts down to its end)
+  //   progress -> GATE in progress (counts down to its end)
+  //   coming   -> after in-progress ends, the next GATE (counts down to its start)
+  function computePinned(now) {
+    const s = slotOf(now);
+    const name = getGate(s);
+    const t = TIMING[name];
+    const elapsed = now - s;
+    if (elapsed < t.entry_period) {
+      return { slot: s, name, state: 'entry', end: s + t.entry_period };
+    }
+    if (elapsed < t.entry_period + t.in_progress) {
+      return { slot: s, name, state: 'progress', end: s + t.entry_period + t.in_progress };
+    }
+    const next = s + SLOT;
+    return { slot: next, name: getGate(next), state: 'coming', end: next };
+  }
   function renderCurrent() {
-    currentSlot = slotOf(nowSec());
-    const name = getGate(currentSlot);
-    const row = makeRow(currentSlot, name, 'Now');
+    pinned = computePinned(nowSec());
+    currentSlot = pinned.slot;
+    const row = makeRow(pinned.slot, pinned.name, TAGS[pinned.state]);
+    row.classList.add('state-' + pinned.state);
     const cd = document.createElement('div');
     cd.className = 'countdown';
     cd.id = 'countdown';
@@ -144,7 +176,7 @@
 
   function updateCountdown() {
     const el = document.getElementById('countdown');
-    if (el) el.textContent = 'next in ' + formatCountdown(currentSlot + SLOT - nowSec());
+    if (el) el.textContent = COUNTDOWN_LABELS[pinned.state] + ' ' + formatCountdown(pinned.end - nowSec());
   }
 
   // ---------- Upcoming list (infinite) ----------
@@ -168,7 +200,7 @@
 
   function resetList() {
     $list.replaceChildren();
-    nextSlot = slotOf(nowSec()) + SLOT;
+    nextSlot = pinned.slot + SLOT;
     $empty.hidden = enabled.size > 0;
     loadMore(BATCH);
     // Make sure the viewport is filled so the observer keeps firing.
@@ -193,6 +225,91 @@
   }, { rootMargin: '400px' });
   observer.observe($sentinel);
 
+  // ---------- Notifications ----------
+  // Works while the page is open (including in a background tab) and, once the
+  // service worker is registered, shows through the OS notification system.
+  const NOTIFY_KEY = 'gate-notify';
+  const MAX_LATE = 90; // don't notify if the entry period started more than this many seconds ago
+  const notifySupported = 'Notification' in window;
+  let notifyOn = false;
+  let swReg = null;
+  let lastNotifiedSlot = 0;
+
+  try {
+    notifyOn = notifySupported &&
+      localStorage.getItem(NOTIFY_KEY) === '1' &&
+      Notification.permission === 'granted';
+  } catch (e) { /* ignore */ }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {});
+  }
+
+  // Called when a GATE's entry period begins. Skipped if the GATE is filtered out.
+  function notifyEntry(p) {
+    if (!notifyOn || !notifySupported || Notification.permission !== 'granted') return;
+    if (!enabled.has(p.name)) return;
+    if (p.slot === lastNotifiedSlot) return;
+    if (nowSec() - p.slot > MAX_LATE) return;
+    lastNotifiedSlot = p.slot;
+
+    const mins = Math.round(TIMING[p.name].entry_period / 60);
+    const title = p.name + ' – entry is open';
+    const opts = {
+      body: `You can enter for the next ${mins} min.`,
+      icon: ICON_DIR + slug(p.name) + ICON_EXT,
+      tag: 'gate-' + p.slot,
+    };
+    try {
+      if (swReg) swReg.showNotification(title, opts); else new Notification(title, opts);
+    } catch (e) { /* ignore */ }
+  }
+
+  function buildNotifyOption() {
+    const divider = document.createElement('div');
+    divider.className = 'divider';
+    $filterList.appendChild(divider);
+
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    const note = document.createElement('div');
+    note.className = 'note';
+
+    if (!notifySupported) {
+      cb.disabled = true;
+      note.textContent = 'Notifications aren\'t supported in this browser. On iPhone/iPad, add this page to your Home Screen first.';
+    } else {
+      cb.checked = notifyOn;
+      cb.addEventListener('change', async () => {
+        note.textContent = '';
+        if (cb.checked) {
+          let perm = Notification.permission;
+          if (perm === 'default') perm = await Notification.requestPermission();
+          if (perm !== 'granted') {
+            cb.checked = false;
+            note.textContent = 'Notifications are blocked. Allow them in your browser\'s site settings.';
+            return;
+          }
+          notifyOn = true;
+        } else {
+          notifyOn = false;
+        }
+        try { localStorage.setItem(NOTIFY_KEY, notifyOn ? '1' : '0'); } catch (e) { /* ignore */ }
+      });
+    }
+    label.append(cb, document.createTextNode('Notify when entry opens'));
+    $filterList.append(label, note);
+
+    const link = document.createElement('a');
+    link.className = 'options-link';
+    link.href = 'https://github.com/rooroodev/ffxivgateschedule';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'help/github';
+    $filterList.appendChild(link);
+  }
+
   // ---------- Filters ----------
   function buildFilters() {
     ALL_TYPES.forEach((name) => {
@@ -209,6 +326,7 @@
       label.append(cb, document.createTextNode(name));
       $filterList.appendChild(label);
     });
+    buildNotifyOption();
   }
 
   document.addEventListener('click', (e) => {
@@ -217,16 +335,20 @@
 
   // ---------- Tick: detect slot changes ----------
   function tick() {
-    const s = slotOf(nowSec());
-    if (s !== currentSlot) {
-      // A new GATE started: update current, drop rows that have started, refresh labels.
+    const p = computePinned(nowSec());
+    if (p.slot !== pinned.slot || p.state !== pinned.state) {
+      const slotChanged = p.slot !== pinned.slot;
       renderCurrent();
-      $list.querySelectorAll('li').forEach((li) => {
-        if (Number(li.dataset.time) <= s) li.remove();
-      });
-      refreshLabels();
-      if (enabled.size > 0) loadMore(1);
-      fillViewport();
+      if (pinned.state === 'entry') notifyEntry(pinned);
+      if (slotChanged) {
+        // Pinned GATE moved forward: drop list rows that are now pinned or past, refresh labels.
+        $list.querySelectorAll('li').forEach((li) => {
+          if (Number(li.dataset.time) <= pinned.slot) li.remove();
+        });
+        refreshLabels();
+        if (enabled.size > 0) loadMore(1);
+        fillViewport();
+      }
     } else {
       updateCountdown();
     }
