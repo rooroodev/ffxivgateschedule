@@ -21,9 +21,9 @@
   ];
 
   // Icons: put 40x40 images in an /images folder named after the slug,
-  // e.g. images/air-force-one.png. Change the extension here if needed.
+  // e.g. images/air-force-one.webp. Change the extension here if needed.
   const ICON_DIR = 'images/';
-  const ICON_EXT = '.png';
+  const ICON_EXT = '.webp';
   const slug = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   // ---------- GATE prediction (port of predict_GATE.py) ----------
