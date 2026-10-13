@@ -1,22 +1,48 @@
 :root {
-  --bg: #12141a;
-  --panel: #1b1e27;
-  --row: #222633;
-  --text: #e8eaf0;
-  --muted: #9aa0b0;
-  --accent: #5b8cff;
-  --green: #3ddc84;
+  --panel: rgba(26, 42, 8, 0.80);
+  --row: rgba(44, 68, 12, 0.80);
+  --text: #f6f1e6;
+  --muted: #d3e0b8;
+  --gold: #f2c14e;
+  --accent: #6fa0ff;
+  --green: #4be28f;
   --yellow: #ffd23f;
-  --border: #2d3242;
+  --border: rgba(242, 193, 78, 0.28);
+
+  /* Background image: save your copy as images/background.jpg */
+  --bg-image: url('images/background.jpg');
+  --bg-blur: 5px;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Blurred background image (falls back to the gradient if the image is missing) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -24px;               /* oversize so the blur doesn't show soft edges */
+  z-index: -2;
+  background-image:
+    var(--bg-image),
+    radial-gradient(ellipse at top, #6c9a1c 0%, #22360b 55%, #0a1203 100%);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur));
+}
+
+/* Dark tint over the image to keep text readable */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(to bottom, rgba(8, 16, 2, 0.55), rgba(8, 16, 2, 0.75));
 }
 
 .topbar, main {
@@ -35,7 +61,14 @@ html, body {
   flex-wrap: wrap;
 }
 
-h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
+h1 {
+  font-size: 1.3rem;
+  margin: 0;
+  line-height: 36px;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
 
 .filters { position: relative; }
 .filters summary {
@@ -46,9 +79,12 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   border: 1px solid var(--border);
   border-radius: 8px;
   user-select: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .filters summary::-webkit-details-marker { display: none; }
-.filters[open] summary { border-color: var(--accent); }
+.filters[open] summary,
+.filters summary:hover { border-color: var(--gold); }
 
 .filter-list {
   position: absolute;
@@ -57,10 +93,12 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   z-index: 20;
   min-width: 220px;
   padding: 8px;
-  background: var(--panel);
+  background: rgba(20, 34, 6, 0.95);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .filter-list label {
   display: flex;
@@ -70,15 +108,15 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   cursor: pointer;
   border-radius: 6px;
 }
-.filter-list label:hover { background: var(--row); }
-.filter-list input { width: 18px; height: 18px; accent-color: var(--accent); }
+.filter-list label:hover { background: rgba(255, 255, 255, 0.08); }
+.filter-list input { width: 18px; height: 18px; accent-color: var(--gold); }
 .filter-list .divider { height: 1px; margin: 6px 0; background: var(--border); }
 .filter-list .note { padding: 0 8px 6px; font-size: 0.8rem; color: var(--muted); max-width: 260px; }
 .filter-list .note:empty { display: none; }
 .filter-list .options-link {
   display: block;
   padding: 10px 8px;
-  color: var(--accent);
+  color: var(--gold);
   text-decoration: none;
 }
 .filter-list .options-link:hover { text-decoration: underline; }
@@ -89,23 +127,25 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   top: 0;
   z-index: 10;
   padding: 8px 0;
-  background: var(--bg);
 }
 .current .row {
   background: var(--panel);
   border: 2px solid var(--accent);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.45);
 }
 .current .tag {
   display: block;
   font-size: 0.7rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
   margin-bottom: 2px;
 }
-.current .row.state-entry    { border-color: var(--green); }
-.current .row.state-progress { border-color: var(--accent); }
-.current .row.state-coming   { border-color: var(--yellow); }
+
+.current .row.state-entry    { border-color: var(--green);  box-shadow: 0 0 18px rgba(75, 226, 143, 0.25); }
+.current .row.state-progress { border-color: var(--accent); box-shadow: 0 0 18px rgba(111, 160, 255, 0.25); }
+.current .row.state-coming   { border-color: var(--yellow); box-shadow: 0 0 18px rgba(255, 210, 63, 0.22); }
 
 .state-entry .tag,    .state-entry .countdown    { color: var(--green); }
 .state-progress .tag, .state-progress .countdown { color: var(--accent); }
@@ -114,9 +154,11 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
 .section-label {
   margin: 8px 0 6px;
   font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--gold);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
 .list { list-style: none; margin: 0; padding: 0 0 40px; }
@@ -128,7 +170,10 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   padding: 10px 12px;
   margin-bottom: 8px;
   background: var(--row);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .icon {
@@ -136,14 +181,14 @@ h1 { font-size: 1.3rem; margin: 0; line-height: 36px; }
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.12);
   object-fit: contain;
 }
 
 .info { flex: 1; min-width: 0; }
-.name { font-weight: 600; overflow-wrap: anywhere; }
+.name { font-weight: 600; overflow-wrap: anywhere; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 .time { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
-.countdown { color: var(--accent); font-size: 0.85rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.countdown { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .empty { color: var(--muted); text-align: center; padding: 24px 0; }
 #sentinel { height: 1px; }
