@@ -21,17 +21,29 @@ I had some (what I thought) were pretty solid theories to start:
 But like what I said before, I couldn't do it. This brings us to October 2026. I had heard buzz about AI's like Claude decompiling things and reverse engineering things. It sounded like it worked best when it had verifiable data, particularly when recompiling something. It started to click that it might be able to help me out here, I had the verifiable data for this. I was a bit reluctant and hadn't used AI or chatbots that much before, but I threw a reduced version of the problem, some theories of the implementation, and some of the data I had at it and just wanted to see what it would say. Well, it got me near all the way there and verified the weather algorithms xorshifts were in fact correct and gave me a script to figure out the weights. The data I gave was not conclusive enough so plugging in my remaining data into the script gave me the exact weights for each GATE time (:00, :20, :40). I just had to figure out the weight order for some of them (something that I may have overlooked initially).
 
 The weights for 7.4 through 7.57 are as follows:
+
 **:00**
+
 Air Force One: 32
+
 Cliffhanger: 33
+
 Leap of Faith: 35
+
 **:20**
+
 Any Way the Wind Blows: 45
+
 The Slice is Right: 33
+
 Air Force One: 22
+
 **:40**
+
 The Slice is Right: 12
+
 Leap of Faith: 13
+
 Air Force One: 75
 
 These you could think of are basically the actual % distribution, aside from any slight bias from the prng part of it.
