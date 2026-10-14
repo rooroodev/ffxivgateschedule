@@ -5,7 +5,6 @@
   const SLOT = 1200;   // 20 minutes in seconds
   const BATCH = 20;    // rows added per infinite-scroll load
 
-  // Same table as predict_GATE.py: [name, weight] in order, keyed by minute.
   const EVENTS = {
     0:  [['Air Force One', 32], ['Cliffhanger', 33], ['Leap of Faith', 35]],
     20: [['Any Way the Wind Blows', 45], ['The Slice is Right', 33], ['Air Force One', 22]],
@@ -21,12 +20,12 @@
   ];
 
   // Icons: put 40x40 images in an /images folder named after the slug,
-  // e.g. images/air-force-one.webp. Change the extension here if needed.
+  // e.g. images/air-force-one.webp.
   const ICON_DIR = 'images/';
   const ICON_EXT = '.webp';
   const slug = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  // ---------- GATE prediction (port of predict_GATE.py) ----------
+  //GATE prediction, xorshifts
   function modelR(ts) {
     let x = ts >>> 0;
     x = (x ^ (x << 11)) >>> 0;

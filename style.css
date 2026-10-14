@@ -8,8 +8,6 @@
   --green: #4be28f;
   --yellow: #ffd23f;
   --border: rgba(242, 193, 78, 0.28);
-
-  /* Background image: save your copy as images/background.jpg */
   --bg-image: url('images/background.jpg');
   --bg-blur: 5px;
 }
