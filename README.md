@@ -1,5 +1,5 @@
 # FFXIV 7.57 GATE Schedule
-This repo contains a webpage that displays the Golden Saucer GATE Schedule. It's a proof of concept to show what's come of the research I've done over the past year regarding this. Some tools/scripts I've used to get to this point may be added later.
+This repo [contains a webpage](https://rooroodev.github.io/ffxivgateschedule/) that displays the Golden Saucer GATE Schedule. It's a proof of concept to show what's come of the research I've done over the past year regarding this. Some tools/scripts I've used to get to this point may be added later.
 
 ## Tips/Notes
 - If notifications are enabled, the page must be kept open to receive them on desktop, ideally as its own window and not a background tab. Background tabs may delay the notifications for too long.
