@@ -56,10 +56,13 @@ body::after {
   gap: 12px;
   padding-top: 16px;
   padding-bottom: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;          /* never drop the Options button onto its own line */
 }
 
 h1 {
+  flex: 1 1 0;                /* title shrinks and wraps its text instead of pushing the button */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 1.3rem;
   margin: 0;
   line-height: 36px;
@@ -68,7 +71,7 @@ h1 {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
 }
 
-.filters { position: relative; }
+.filters { position: relative; flex: none; margin-left: auto; }
 .filters summary {
   cursor: pointer;
   list-style: none;
@@ -90,6 +93,7 @@ h1 {
   top: calc(100% + 6px);
   z-index: 20;
   min-width: 220px;
+  max-width: calc(100vw - 24px);   /* menu can never extend past the screen edge */
   padding: 8px;
   background: rgba(20, 34, 6, 0.95);
   border: 1px solid var(--border);
