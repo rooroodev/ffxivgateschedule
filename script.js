@@ -131,9 +131,9 @@
   // ---------- Current GATE ----------
   // Seconds a GATE can be entered, and then stays in progress, measured from its start.
   const TIMING = {
-    'Air Force One':          { entry_period: 600, in_progress: 210 },
+    'Air Force One':          { entry_period: 600, in_progress: 0 },
     'Cliffhanger':            { entry_period: 600, in_progress: 0 },
-    'Leap of Faith':          { entry_period: 480, in_progress: 600 },
+    'Leap of Faith':          { entry_period: 480, in_progress: 0 },
     'Any Way the Wind Blows': { entry_period: 120, in_progress: 75 },
     'The Slice is Right':     { entry_period: 120, in_progress: 270 },
   };
