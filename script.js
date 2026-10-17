@@ -25,22 +25,33 @@
   const ICON_EXT = '.webp';
   const slug = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-  //GATE prediction, xorshifts
-  function modelR(ts) {
-    let x = ts >>> 0;
-    x = (x ^ (x << 11)) >>> 0;
-    x = (x ^ (x >>> 8)) >>> 0;
-    return x % 100;
+  //standard xorshift128 implementation, except every state word initialized to 0,
+  //and then time seed (ts) used as the seed (x).
+  function xorshift128(ts) {
+    let x = ts >>> 0, y = 0, z = 0, w = 0;
+    return function next() {
+      const t = (x ^ (x << 11)) >>> 0;
+      x = y; y = z; z = w;
+      w = (w ^ (w >>> 19) ^ t ^ (t >>> 8)) >>> 0;
+      return w;
+    };
   }
 
+  // Works with any number of events per slot. The modulus is the sum of the
+  // weights, so weights don't need to add up to 100.
   function getGate(slotStart) {
     // Slot start is a multiple of 1200s, so the UTC minute is 0, 20 or 40.
     const minutes = (Math.floor(slotStart / SLOT) % 3) * 20;
-    const w = EVENTS[minutes];
-    const r = modelR(slotStart);
-    if (r < w[0][1]) return w[0][0];
-    if (r < w[0][1] + w[1][1]) return w[1][0];
-    return w[2][0];
+    const events = EVENTS[minutes];
+    let total = 0;
+    for (const [, weight] of events) total += weight;
+    const r = xorshift128(slotStart)() % total;
+    let acc = 0;
+    for (const [name, weight] of events) {
+      acc += weight;
+      if (r < acc) return name;
+    }
+    return events[events.length - 1][0];
   }
 
   const slotOf = (nowSec) => Math.floor(nowSec / SLOT) * SLOT;
