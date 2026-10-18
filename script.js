@@ -5,10 +5,63 @@
   const SLOT = 1200;   // 20 minutes in seconds
   const BATCH = 20;    // rows added per infinite-scroll load
 
+  // EVENTS[minute] = the GATEs that can happen in that time slot (:00, :20, :40).
+  //   name      GATE name (must match ALL_TYPES / TIMING / icon file name)
+  //   weight    chance of this GATE relative to the others in the same slot
+  //   variants  OPTIONAL. [{ name, weight }, ...] for this GATE in this slot only.
+  //             Leave it out (or empty) when the GATE has no variants.
+  // Order matters: the first draw picks the GATE by walking this list in order,
+  // the second draw picks the variant by walking that GATE's variants in order.
+  // Example (not active):
+  //   { name: 'Air Force One', weight: 32, variants: [{ name: 'Variant A', weight: 1 }, { name: 'Variant B', weight: 3 }] },
+  
+  //notice variant weights do not add up to 100.
+  //AFO Cieldalaes has 3 routes, I wasn't sure what to call them
+  const AFO_CIELDALAES_VARIANTS = [
+    { name: 'Cieldalaes: Sea Route', weight: 1},
+    { name: 'Cieldalaes: Cave Route', weight: 1},
+    { name: 'Cieldalaes: River Route', weight: 1}
+  ];
+  
+  //AFO golden saucer also has 3 routes, and I just named them based on where you start
+  const AFO_GS_VARIANTS = [
+    { name: 'Event Square Route', weight: 1},
+	{ name: 'Wonder Square Route', weight: 1},
+	{ name: 'Round Square Route', weight : 1}
+  ];
+  
+  const LEAP_VARIANTS = [
+    { name: "The Fall of Belah'dia", weight: 9},
+    { name: 'The Falling City of Nym', weight: 9},
+    { name: 'Sylphstep', weight: 9}
+  ];
+  
+  const CLIFFHANGER_VARIANTS = [
+    { name: 'Round Square', weight: 7},
+	{ name: 'Wonder Square East', weight : 7}
+  ];
+  
+  //this is just a filler, Wind and Slice have no "variants" that I know of
+  const WIND_SLICE_VARIANTS = [
+    { name: 'Event Square', weight: 1}
+  ]; 
+  
   const EVENTS = {
-    0:  [['Air Force One', 32], ['Cliffhanger', 33], ['Leap of Faith', 35]],
-    20: [['Any Way the Wind Blows', 45], ['The Slice is Right', 33], ['Air Force One', 22]],
-    40: [['The Slice is Right', 12], ['Leap of Faith', 13], ['Air Force One', 75]],
+    0: [
+      { name: 'Air Force One', weight: 32 , variants: AFO_CIELDALAES_VARIANTS },
+      { name: 'Cliffhanger',   weight: 33 , variants: CLIFFHANGER_VARIANTS },
+      { name: 'Leap of Faith', weight: 35 , variants: LEAP_VARIANTS},
+    ],
+    20: [
+      { name: 'Any Way the Wind Blows', weight: 45 , variants: WIND_SLICE_VARIANTS},
+      { name: 'The Slice is Right',     weight: 33 , variants: WIND_SLICE_VARIANTS},
+      { name: 'Air Force One',          weight: 22 , variants: AFO_GS_VARIANTS },
+    ],
+    40: [
+      { name: 'The Slice is Right', weight: 12 , variants: WIND_SLICE_VARIANTS},
+      { name: 'Leap of Faith',      weight: 13 , variants: LEAP_VARIANTS },
+      { name: 'Air Force One',      weight: 75 , variants: AFO_CIELDALAES_VARIANTS },
+    ],
   };
 
   const ALL_TYPES = [
@@ -37,21 +90,35 @@
     };
   }
 
-  // Works with any number of events per slot. The modulus is the sum of the
-  // weights, so weights don't need to add up to 100.
+  // Picks an item from a list of { weight } objects using a raw draw.
+  // The modulus is the sum of the weights, so weights don't need to add up to 100.
+  function pickWeighted(items, draw) {
+    let total = 0;
+    for (const it of items) total += it.weight;
+    const r = draw % total;
+    let acc = 0;
+    for (const it of items) {
+      acc += it.weight;
+      if (r < acc) return it;
+    }
+    return items[items.length - 1];
+  }
+
+  // Returns { name, variant } for the slot starting at slotStart.
+  //   1st draw -> which GATE        (modulus = total weight of the GATEs in the slot)
+  //   2nd draw -> which variant     (modulus = total weight of that GATE's variants)
+  // variant is null when the chosen GATE has no variants.
   function getGate(slotStart) {
     // Slot start is a multiple of 1200s, so the UTC minute is 0, 20 or 40.
     const minutes = (Math.floor(slotStart / SLOT) % 3) * 20;
     const events = EVENTS[minutes];
-    let total = 0;
-    for (const [, weight] of events) total += weight;
-    const r = xorshift128(slotStart)() % total;
-    let acc = 0;
-    for (const [name, weight] of events) {
-      acc += weight;
-      if (r < acc) return name;
+    const next = xorshift128(slotStart);
+    const gate = pickWeighted(events, next());
+    let variant = null;
+    if (gate.variants && gate.variants.length > 0) {
+      variant = pickWeighted(gate.variants, next()).name;
     }
-    return events[events.length - 1][0];
+    return { name: gate.name, variant };
   }
 
   const slotOf = (nowSec) => Math.floor(nowSec / SLOT) * SLOT;
@@ -115,7 +182,7 @@
     return img;
   }
 
-  function makeRow(slotStart, name, tag) {
+  function makeRow(slotStart, name, tag, variant) {
     const row = document.createElement('div');
     row.className = 'row';
     row.appendChild(makeIcon(name));
@@ -134,7 +201,14 @@
     const time = document.createElement('div');
     time.className = 'time';
     time.textContent = formatStart(slotStart);
-    info.append(n, time);
+    info.appendChild(n);
+    if (variant) {
+      const v = document.createElement('div');
+      v.className = 'variant';
+      v.textContent = variant;
+      info.appendChild(v);
+    }
+    info.appendChild(time);
     row.appendChild(info);
     return row;
   }
@@ -159,22 +233,23 @@
   //   coming   -> after in-progress ends, the next GATE (counts down to its start)
   function computePinned(now) {
     const s = slotOf(now);
-    const name = getGate(s);
+    const { name, variant } = getGate(s);
     const t = TIMING[name];
     const elapsed = now - s;
     if (elapsed < t.entry_period) {
-      return { slot: s, name, state: 'entry', end: s + t.entry_period };
+      return { slot: s, name, variant, state: 'entry', end: s + t.entry_period };
     }
     if (elapsed < t.entry_period + t.in_progress) {
-      return { slot: s, name, state: 'progress', end: s + t.entry_period + t.in_progress };
+      return { slot: s, name, variant, state: 'progress', end: s + t.entry_period + t.in_progress };
     }
     const next = s + SLOT;
-    return { slot: next, name: getGate(next), state: 'coming', end: next };
+    const g = getGate(next);
+    return { slot: next, name: g.name, variant: g.variant, state: 'coming', end: next };
   }
   function renderCurrent() {
     pinned = computePinned(nowSec());
     currentSlot = pinned.slot;
-    const row = makeRow(pinned.slot, pinned.name, TAGS[pinned.state]);
+    const row = makeRow(pinned.slot, pinned.name, TAGS[pinned.state], pinned.variant);
     row.classList.add('state-' + pinned.state);
     const cd = document.createElement('div');
     cd.className = 'countdown';
@@ -195,11 +270,11 @@
     let added = 0;
     const frag = document.createDocumentFragment();
     while (added < count) {
-      const name = getGate(nextSlot);
-      if (enabled.has(name)) {
+      const g = getGate(nextSlot);
+      if (enabled.has(g.name)) {
         const li = document.createElement('li');
         li.dataset.time = nextSlot;
-        li.appendChild(makeRow(nextSlot, name));
+        li.appendChild(makeRow(nextSlot, g.name, null, g.variant));
         frag.appendChild(li);
         added++;
       }
@@ -266,7 +341,7 @@
     const mins = Math.round(TIMING[p.name].entry_period / 60);
     const title = p.name + ' – entry is open';
     const opts = {
-      body: `You can enter for the next ${mins} min.`,
+      body: (p.variant ? p.variant + '. ' : '') + `You can enter for the next ${mins} min.`,
       icon: ICON_DIR + slug(p.name) + ICON_EXT,
       tag: 'gate-' + p.slot,
     };

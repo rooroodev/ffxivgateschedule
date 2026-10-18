@@ -189,6 +189,7 @@ h1 {
 
 .info { flex: 1; min-width: 0; }
 .name { font-weight: 600; overflow-wrap: anywhere; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.variant { color: var(--gold); font-size: 0.85rem; font-weight: 600; overflow-wrap: anywhere; }
 .time { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 .countdown { font-size: 0.85rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
