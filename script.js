@@ -147,6 +147,7 @@
   const $sentinel = document.getElementById('sentinel');
   const $filterList = document.getElementById('filter-list');
   const $filters = document.getElementById('filters');
+  const $toTop = document.getElementById('to-top');
 
   const nowSec = () => Math.floor(Date.now() / 1000);
 
@@ -310,6 +311,41 @@
   }, { rootMargin: '400px' });
   observer.observe($sentinel);
 
+  // ---------- Back-to-top button ----------
+  // Shown once the user has scrolled this many rows down the upcoming list.
+  const TOP_BUTTON_AFTER_ROWS = 30;
+  let toTopQueued = false;
+
+  function updateToTop() {
+    const items = $list.children;
+    let show = false;
+    if (items.length > 0) {
+      // First row that isn't hidden behind the pinned GATE (binary search: rows are in order).
+      const cutoff = $current.getBoundingClientRect().bottom;
+      let lo = 0, hi = items.length - 1, found = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (items[mid].getBoundingClientRect().bottom > cutoff) { found = mid; hi = mid - 1; } else { lo = mid + 1; }
+      }
+      const rowsScrolled = found === -1 ? items.length : found; // rows that are above the viewport
+      show = rowsScrolled >= TOP_BUTTON_AFTER_ROWS;
+    }
+    $toTop.classList.toggle('visible', show);
+  }
+
+  function queueToTopUpdate() {
+    if (toTopQueued) return;
+    toTopQueued = true;
+    requestAnimationFrame(() => { toTopQueued = false; updateToTop(); });
+  }
+
+  window.addEventListener('scroll', queueToTopUpdate, { passive: true });
+  window.addEventListener('resize', queueToTopUpdate);
+  $toTop.addEventListener('click', () => {
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  });
+
   // ---------- Notifications ----------
   // Works while the page is open (including in a background tab) and, once the
   // service worker is registered, shows through the OS notification system.
@@ -449,6 +485,7 @@
     } else {
       updateCountdown();
     }
+    updateToTop();
   }
 
   // ---------- Init ----------
