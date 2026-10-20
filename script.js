@@ -319,6 +319,7 @@
   let notifyOn = false;
   let swReg = null;
   let lastNotifiedSlot = 0;
+  let permissionPending = false; // true while the browser's notification permission prompt is open
 
   try {
     notifyOn = notifySupported &&
@@ -370,7 +371,10 @@
         note.textContent = '';
         if (cb.checked) {
           let perm = Notification.permission;
-          if (perm === 'default') perm = await Notification.requestPermission();
+          if (perm === 'default') {
+            permissionPending = true;
+            try { perm = await Notification.requestPermission(); } finally { permissionPending = false; }
+          }
           if (perm !== 'granted') {
             cb.checked = false;
             note.textContent = 'Notifications are blocked. Allow them in your browser\'s site settings.';
@@ -417,6 +421,14 @@
   document.addEventListener('click', (e) => {
     if (!$filters.contains(e.target)) $filters.open = false;
   });
+
+  // Also close the Options menu when the window loses focus or the tab is hidden.
+  // Skipped while the notification permission prompt is open, since that steals focus too.
+  function closeMenuOnBlur() {
+    if (!permissionPending) $filters.open = false;
+  }
+  window.addEventListener('blur', closeMenuOnBlur);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) closeMenuOnBlur(); });
 
   // ---------- Tick: detect slot changes ----------
   function tick() {
