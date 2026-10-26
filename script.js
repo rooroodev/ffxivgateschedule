@@ -5,6 +5,23 @@
   const SLOT = 1200;   // 20 minutes in seconds
   const BATCH = 20;    // rows added per infinite-scroll load
 
+  // Special images picked on the 4th draw. GATE_IMAGES[gateName] = [{ name, weight }, ...]
+  // The image file is images/<name-with-dashes>.webp, e.g. 'wayward hatchling' ->
+  // images/wayward-hatchling.webp. GATEs not listed here just use their own icon.
+  //cliffhanger is the wayward hatchling and the default pic for cliffhanger
+  const CLIFFHANGER_HATCHLING = [
+    { name: 'cliffhanger',         weight: 1 },
+    { name: 'storm hatchling',     weight: 1 },
+    { name: 'serpent hatchling',   weight: 1 },
+    { name: 'flame hatchling',     weight: 1 },
+    { name: 'black chocobo chick', weight: 1 },
+    { name: 'princely hatchling',  weight: 1 },
+    { name: 'heavy hatchling',     weight: 1 },
+  ];
+  const GATE_IMAGES = {
+    'Cliffhanger': CLIFFHANGER_HATCHLING,
+  };
+
   // EVENTS[minute] = the GATEs that can happen in that time slot (:00, :20, :40).
   //   name      GATE name (must match ALL_TYPES / TIMING / icon file name)
   //   weight    chance of this GATE relative to the others in the same slot
@@ -18,27 +35,27 @@
   //notice variant weights do not add up to 100.
   //AFO Cieldalaes has 3 routes, I wasn't sure what to call them
   const AFO_CIELDALAES_VARIANTS = [
-    { name: 'Cieldalaes: Sea Route', weight: 1},
-    { name: 'Cieldalaes: Cave Route', weight: 1},
+    { name: 'Cieldalaes: Sea Route',   weight: 1},
+    { name: 'Cieldalaes: Cave Route',  weight: 1},
     { name: 'Cieldalaes: River Route', weight: 1}
   ];
   
   //AFO golden saucer also has 3 routes, and I just named them based on where you start
   const AFO_GS_VARIANTS = [
-    { name: 'Event Square Route', weight: 1},
-	{ name: 'Wonder Square Route', weight: 1},
-	{ name: 'Round Square Route', weight : 1}
+    { name: 'Event Square Route',  weight: 1},
+	  { name: 'Wonder Square Route', weight: 1},
+	  { name: 'Round Square Route',  weight: 1}
   ];
   
   const LEAP_VARIANTS = [
-    { name: "The Fall of Belah'dia", weight: 9},
+    { name: "The Fall of Belah'dia",   weight: 9},
     { name: 'The Falling City of Nym', weight: 9},
-    { name: 'Sylphstep', weight: 9}
+    { name: 'Sylphstep',               weight: 9}
   ];
   
   const CLIFFHANGER_VARIANTS = [
-    { name: 'Round Square', weight: 7},
-	{ name: 'Wonder Square East', weight : 7}
+    { name: 'Round Square',        weight: 7},
+	  { name: 'Wonder Square East',  weight: 7}
   ];
   
   //this is just a filler, Wind and Slice have no "variants" that I know of
@@ -104,21 +121,27 @@
     return items[items.length - 1];
   }
 
-  // Returns { name, variant } for the slot starting at slotStart.
-  //   1st draw -> which GATE        (modulus = total weight of the GATEs in the slot)
-  //   2nd draw -> which variant     (modulus = total weight of that GATE's variants)
-  // variant is null when the chosen GATE has no variants.
+  // Returns { name, variant, image } for the slot starting at slotStart.
+  //   1st draw -> which GATE      (modulus = total weight of the GATEs in the slot)
+  //   2nd draw -> which variant   (modulus = total weight of that GATE's variants)
+  //   3rd draw -> not used yet
+  //   4th draw -> which image     (only for GATEs listed in GATE_IMAGES, e.g. Cliffhanger)
+  // All four draws are always taken in order, so what a draw means never depends on
+  // whether an earlier step had anything to pick.
+  // variant / image are null when the chosen GATE has none.
   function getGate(slotStart) {
     // Slot start is a multiple of 1200s, so the UTC minute is 0, 20 or 40.
     const minutes = (Math.floor(slotStart / SLOT) % 3) * 20;
     const events = EVENTS[minutes];
     const next = xorshift128(slotStart);
-    const gate = pickWeighted(events, next());
-    let variant = null;
-    if (gate.variants && gate.variants.length > 0) {
-      variant = pickWeighted(gate.variants, next()).name;
-    }
-    return { name: gate.name, variant };
+    const d1 = next(), d2 = next(), /* d3 */ _ = next(), d4 = next();
+
+    const gate = pickWeighted(events, d1);
+    const variant = gate.variants && gate.variants.length > 0
+      ? pickWeighted(gate.variants, d2).name : null;
+    const images = GATE_IMAGES[gate.name];
+    const image = images && images.length > 0 ? pickWeighted(images, d4).name : null;
+    return { name: gate.name, variant, image };
   }
 
   const slotOf = (nowSec) => Math.floor(nowSec / SLOT) * SLOT;
@@ -171,22 +194,30 @@
   }
 
   // ---------- Row building ----------
-  function makeIcon(name) {
+  function makeIcon(name, image) {
     const img = document.createElement('img');
     img.className = 'icon';
     img.width = 40;
     img.height = 40;
     img.alt = '';
     img.loading = 'lazy';
-    img.src = ICON_DIR + slug(name) + ICON_EXT;
-    img.addEventListener('error', () => { img.removeAttribute('src'); }); // keep the 40x40 placeholder box
+    img.src = ICON_DIR + slug(image || name) + ICON_EXT;
+    img.addEventListener('error', () => {
+      if (image && img.dataset.fallback !== '1') {
+        // special image missing: fall back to the GATE's own icon
+        img.dataset.fallback = '1';
+        img.src = ICON_DIR + slug(name) + ICON_EXT;
+      } else {
+        img.removeAttribute('src'); // keep the 40x40 placeholder box
+      }
+    });
     return img;
   }
 
-  function makeRow(slotStart, name, tag, variant) {
+  function makeRow(slotStart, name, tag, variant, image) {
     const row = document.createElement('div');
     row.className = 'row';
-    row.appendChild(makeIcon(name));
+    row.appendChild(makeIcon(name, image));
 
     const info = document.createElement('div');
     info.className = 'info';
@@ -234,23 +265,23 @@
   //   coming   -> after in-progress ends, the next GATE (counts down to its start)
   function computePinned(now) {
     const s = slotOf(now);
-    const { name, variant } = getGate(s);
+    const { name, variant, image } = getGate(s);
     const t = TIMING[name];
     const elapsed = now - s;
     if (elapsed < t.entry_period) {
-      return { slot: s, name, variant, state: 'entry', end: s + t.entry_period };
+      return { slot: s, name, variant, image, state: 'entry', end: s + t.entry_period };
     }
     if (elapsed < t.entry_period + t.in_progress) {
-      return { slot: s, name, variant, state: 'progress', end: s + t.entry_period + t.in_progress };
+      return { slot: s, name, variant, image, state: 'progress', end: s + t.entry_period + t.in_progress };
     }
     const next = s + SLOT;
     const g = getGate(next);
-    return { slot: next, name: g.name, variant: g.variant, state: 'coming', end: next };
+    return { slot: next, name: g.name, variant: g.variant, image: g.image, state: 'coming', end: next };
   }
   function renderCurrent() {
     pinned = computePinned(nowSec());
     currentSlot = pinned.slot;
-    const row = makeRow(pinned.slot, pinned.name, TAGS[pinned.state], pinned.variant);
+    const row = makeRow(pinned.slot, pinned.name, TAGS[pinned.state], pinned.variant, pinned.image);
     row.classList.add('state-' + pinned.state);
     const cd = document.createElement('div');
     cd.className = 'countdown';
@@ -275,7 +306,7 @@
       if (enabled.has(g.name)) {
         const li = document.createElement('li');
         li.dataset.time = nextSlot;
-        li.appendChild(makeRow(nextSlot, g.name, null, g.variant));
+        li.appendChild(makeRow(nextSlot, g.name, null, g.variant, g.image));
         frag.appendChild(li);
         added++;
       }
@@ -379,7 +410,7 @@
     const title = p.name + ' – entry is open';
     const opts = {
       body: (p.variant ? p.variant + '. ' : '') + `You can enter for the next ${mins} min.`,
-      icon: ICON_DIR + slug(p.name) + ICON_EXT,
+      icon: ICON_DIR + slug(p.image || p.name) + ICON_EXT,
       tag: 'gate-' + p.slot,
     };
     try {
